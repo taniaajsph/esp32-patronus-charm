@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Patronus Project</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      color: white;
+      text-shadow: 0 0 10px #000;
+    }
+
+    video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: -1;
+    }
+
+    .header {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+    }
+
+    #overlay {
+      display: none;
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Video -->
+  <video id="background" autoplay muted loop playsinline>
+    <source src="front.mp4" type="video/mp4">
+    Your browser does not support HTML5 video.
+  </video>
+
+  <!-- Overlay Video -->
+  <video id="overlay" playsinline src="wolf.mp4"></video>
+
+  <!-- Header -->
+  <div class="header">
+    <h1> Summon your Patronus </h1>
+    <p id="status">⚠️ Connection lost. Reconnecting...</p>
+  </div>
+
+  <script>
+    const overlay = document.getElementById("overlay");
+    const status = document.getElementById("status");
+    const background = document.getElementById("background");
+
+    const videos = [
+      "cat.mp4",
+      "wolf.mp4",
+      "front.mp4"
+    ];
+
+    // Preload videos
+    function preloadVideos() {
+      videos.forEach(video => {
+        const el = document.createElement("video");
+        el.src = video;
+        el.preload = "auto";
+      });
+    }
+
+    // Play a random overlay video
+    function playRandomVideo() {
+      const choice = videos[Math.floor(Math.random() * videos.length)];
+      overlay.src = choice;
+      overlay.style.display = "block";
+      overlay.currentTime = 0;
+      overlay.play();
+
+      overlay.onended = () => {
+        overlay.style.display = "none";
+      };
+    }
+
+    let eventSource = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    const reconnectDelay = 3000; // 3 seconds
+
+    function setupEventSource() {
+      console.log("🔌 Connecting to magic server...");
+      status.textContent = "Connecting to magic...";
+
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      eventSource = new EventSource("/events");
+
+      eventSource.addEventListener("connected", (event) => {
+        console.log("✅ Connected to magic server!");
+        status.textContent = "Connected! Wave your wand...";
+        reconnectAttempts = 0;
+      });
+
+      eventSource.addEventListener("message", (event) => {
+        console.log("📬 Received magic trigger:", event.data);
+        if (event.data === "trigger") {
+          console.log("🎇 Casting spell!");
+          playRandomVideo();
+        }
+      });
+
+      eventSource.onerror = (err) => {
+        console.error("❌ Magic connection error:", err);
+
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.log("🛑 Connection closed by server");
+        }
+
+        eventSource.close();
+
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          const delay = reconnectDelay * reconnectAttempts;
+          status.textContent = `⚠️ Reconnecting in ${delay / 1000} seconds...`;
+
+          console.log(`♻️ Attempting reconnect #${reconnectAttempts} in ${delay}ms`);
+          setTimeout(setupEventSource, delay);
+        } else {
+          console.error("🆘 Max reconnection attempts reached");
+          status.textContent = "❌ Magic connection lost. Please reload page.";
+        }
+      };
+    }
+
+    // Initialize everything
+    function init() {
+      preloadVideos();
+      setupEventSource();
+    }
+
+    window.addEventListener("load", init);
+
+    // Manual reconnect button
+    document.addEventListener("DOMContentLoaded", () => {
+      const reconnectBtn = document.createElement("button");
+      reconnectBtn.textContent = "Reconnect Magic";
+      reconnectBtn.style.position = "absolute";
+      reconnectBtn.style.bottom = "10px";
+      reconnectBtn.style.right = "10px";
+      reconnectBtn.style.zIndex = "100";
+      reconnectBtn.style.padding = "10px";
+      reconnectBtn.addEventListener("click", () => {
+        reconnectAttempts = 0;
+        setupEventSource();
+      });
+      document.body.appendChild(reconnectBtn);
+    });
+  </script>
+</body>
+</html>
